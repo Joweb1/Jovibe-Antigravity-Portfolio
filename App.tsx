@@ -16,6 +16,7 @@ import About from './components/About';
 import Skills from './components/Skills';
 import AIAssistant from './components/AIAssistant';
 import CommandPalette from './components/CommandPalette';
+import ThemeGenerator from './components/ThemeGenerator';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'home' | 'archive' | 'about' | 'testimonials'>('home');
   const [isCmdOpen, setIsCmdOpen] = useState(false);
+  const [isThemeGenOpen, setIsThemeGenOpen] = useState(false);
   
   // Initialize theme based on localStorage or system preference
   const [isDark, setIsDark] = useState(() => {
@@ -56,8 +58,6 @@ const App: React.FC = () => {
     } else {
       root.classList.remove('dark');
     }
-    // Note: We do NOT save to localStorage here anymore.
-    // This prevents locking the theme to the system default on first visit.
     
     setTimeout(() => {
       ScrollTrigger.refresh();
@@ -170,6 +170,8 @@ const App: React.FC = () => {
           switchView(section as any);
       } else if (section === 'theme') {
           toggleTheme();
+      } else if (section === 'generate-theme') {
+          setIsThemeGenOpen(true);
       } else {
           // Scroll to ID
           if (view !== 'home') {
@@ -186,7 +188,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen transition-colors duration-700 ease-luxury bg-theme-bg text-theme-text selection:bg-purple-500 selection:text-white">
+    <div className="relative min-h-screen transition-colors duration-700 ease-luxury bg-theme-bg text-theme-text selection:bg-theme-accent selection:text-white">
       <div className="grain-overlay" />
       <CustomCursor />
       <Preloader onComplete={handleLoadingComplete} />
@@ -196,6 +198,10 @@ const App: React.FC = () => {
         onNavigate={handleCmdNavigate}
         onToggleTheme={toggleTheme}
       />
+      <ThemeGenerator 
+        isOpen={isThemeGenOpen}
+        onClose={() => setIsThemeGenOpen(false)}
+      />
       
       {!loading && (
         <div className="relative z-10 flex flex-col">
@@ -204,6 +210,7 @@ const App: React.FC = () => {
             onToggleTheme={toggleTheme} 
             currentView={view}
             onViewChange={switchView}
+            onOpenThemeGen={() => setIsThemeGenOpen(true)}
           />
           <main className="view-content flex-grow">
             {view === 'home' && (
@@ -213,7 +220,6 @@ const App: React.FC = () => {
                 <Services />
                 <Process />
                 <Work onShowArchive={() => switchView('archive')} />
-                {/* Testimonials moved to its own page */}
               </>
             )}
             {view === 'archive' && <Archive onBack={() => switchView('home')} />}

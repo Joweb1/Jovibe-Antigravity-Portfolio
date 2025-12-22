@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import gsap from 'gsap';
-import { Search, Command, ArrowRight, Sun, Moon, Briefcase, User, Mail, Zap, Quote } from 'lucide-react';
+import { Search, Command, ArrowRight, Sun, Moon, Briefcase, User, Mail, Zap, Quote, Wand2 } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
   const inputRef = useRef<HTMLInputElement>(null);
 
   const actions = [
+    { id: 'generate-theme', label: 'AI Theme Generator', icon: <Wand2 size={14} />, action: () => onNavigate('generate-theme') },
     { id: 'home', label: 'Go Home', icon: <Zap size={14} />, action: () => onNavigate('home') },
     { id: 'work', label: 'View Projects', icon: <Briefcase size={14} />, action: () => onNavigate('work') },
     { id: 'services', label: 'Services', icon: <Command size={14} />, action: () => onNavigate('services') },
@@ -108,17 +109,17 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
                         }}
                         onMouseEnter={() => setSelectedIndex(idx)}
                         className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
-                            idx === selectedIndex ? 'bg-purple-600/10 border-l-2 border-purple-600' : 'border-l-2 border-transparent'
+                            idx === selectedIndex ? 'bg-theme-accent/10 border-l-2 border-theme-accent' : 'border-l-2 border-transparent'
                         }`}
                     >
-                        <span className={`p-1 rounded ${idx === selectedIndex ? 'text-purple-600' : 'text-theme-text/40'}`}>
+                        <span className={`p-1 rounded ${idx === selectedIndex ? 'text-theme-accent' : 'text-theme-text/40'}`}>
                             {action.icon}
                         </span>
                         <span className={`text-sm font-medium ${idx === selectedIndex ? 'text-theme-text' : 'text-theme-text/60'}`}>
                             {action.label}
                         </span>
                         {idx === selectedIndex && (
-                            <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-purple-600/50">Enter</span>
+                            <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-theme-accent/50">Enter</span>
                         )}
                     </button>
                 ))

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { Sun, Moon, ArrowLeft, Menu, X } from 'lucide-react';
+import { Sun, Moon, ArrowLeft, Menu, X, Wand2 } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import { useMagnetic } from '../hooks/useMagnetic';
 
@@ -10,9 +10,10 @@ interface HeaderProps {
   onToggleTheme: () => void;
   currentView: 'home' | 'archive' | 'about' | 'testimonials';
   onViewChange: (view: 'home' | 'archive' | 'about' | 'testimonials') => void;
+  onOpenThemeGen: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onViewChange }) => {
+const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onViewChange, onOpenThemeGen }) => {
   const headerRef = useRef<HTMLElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
@@ -113,7 +114,7 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
             {currentView !== 'home' ? (
               <button 
                 onClick={() => onViewChange('home')}
-                className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-purple-600 font-black"
+                className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-theme-accent font-black"
               >
                 <ArrowLeft size={12} /> Back Home
               </button>
@@ -131,6 +132,14 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
           </nav>
 
           <div className="flex items-center gap-3 relative z-[90]">
+            <button
+                onClick={onOpenThemeGen}
+                className="hidden md:flex p-2.5 bg-theme-text/5 hover:bg-theme-text/10 border border-theme-border rounded-full text-theme-text transition-all duration-300 group"
+                aria-label="Generate Theme"
+            >
+                <Wand2 size={16} className="group-hover:text-theme-accent transition-colors" />
+            </button>
+
             <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
             <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -156,11 +165,20 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
                         link.action();
                         setIsMobileMenuOpen(false);
                     }}
-                    className="mobile-nav-link text-5xl font-black uppercase tracking-tighter text-theme-text hover:text-purple-600 transition-colors duration-300"
+                    className="mobile-nav-link text-5xl font-black uppercase tracking-tighter text-theme-text hover:text-theme-accent transition-colors duration-300"
                 >
                     {link.label}
                 </button>
             ))}
+             <button
+                onClick={() => {
+                    onOpenThemeGen();
+                    setIsMobileMenuOpen(false);
+                }}
+                className="mobile-nav-link text-xl font-black uppercase tracking-[0.2em] text-theme-text/50 hover:text-theme-accent transition-colors duration-300 flex items-center justify-center gap-3 mt-8"
+            >
+                <Wand2 size={20} /> Generative Theme
+            </button>
         </div>
         
         <div className="absolute bottom-10 left-0 w-full text-center">

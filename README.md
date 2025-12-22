@@ -88,3 +88,9 @@ This project is optimized for static hosting.
 2.  Create a **Static Site** on [Render](https://render.com).
 3.  **Build Command:** `npm install && npm run build`
 4.  **Publish Directory:** `dist`
+5.  **Environment Variables:** Add `API_KEY` in the Render dashboard settings.
+
+## 📄 License
+
+Designed & Engineered by **Jonadab Uroh**.
+Open source under the [MIT License](LICENSE).
