@@ -1,6 +1,6 @@
 
 export const IMAGES = {
-  profile: "https://github.com/Joweb1.png",
+  profile: "https://avatars.githubusercontent.com/u/119818904?v=4",
   about: "https://raw.githubusercontent.com/Joweb1/Codewithmobile/refs/heads/main/Generated%20Image%20September%2026%2C%202025%20-%2010_41AM.jpg",
   projects: {
     jovibe: "https://raw.githubusercontent.com/Joweb1/Codewithmobile/refs/heads/main/Generated%20Image%20November%2024%2C%202025%20-%207_26PM.png",

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { Sun, Moon, ArrowLeft, Menu, X, Wand2 } from 'lucide-react';
+import { Sun, Moon, ArrowLeft, Menu, X, Wand2, Briefcase } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import { useMagnetic } from '../hooks/useMagnetic';
 
@@ -11,9 +11,10 @@ interface HeaderProps {
   currentView: 'home' | 'archive' | 'about' | 'testimonials';
   onViewChange: (view: 'home' | 'archive' | 'about' | 'testimonials') => void;
   onOpenThemeGen: () => void;
+  onOpenRecruiter: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onViewChange, onOpenThemeGen }) => {
+const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onViewChange, onOpenThemeGen, onOpenRecruiter }) => {
   const headerRef = useRef<HTMLElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
@@ -133,6 +134,14 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
 
           <div className="flex items-center gap-3 relative z-[90]">
             <button
+                onClick={onOpenRecruiter}
+                className="hidden md:flex p-2.5 bg-theme-text/5 hover:bg-theme-text/10 border border-theme-border rounded-full text-theme-text transition-all duration-300 group"
+                aria-label="Recruiter Mode"
+            >
+                <Briefcase size={16} className="group-hover:text-theme-accent transition-colors" />
+            </button>
+            
+            <button
                 onClick={onOpenThemeGen}
                 className="hidden md:flex p-2.5 bg-theme-text/5 hover:bg-theme-text/10 border border-theme-border rounded-full text-theme-text transition-all duration-300 group"
                 aria-label="Generate Theme"
@@ -172,10 +181,19 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
             ))}
              <button
                 onClick={() => {
-                    onOpenThemeGen();
+                    onOpenRecruiter();
                     setIsMobileMenuOpen(false);
                 }}
                 className="mobile-nav-link text-xl font-black uppercase tracking-[0.2em] text-theme-text/50 hover:text-theme-accent transition-colors duration-300 flex items-center justify-center gap-3 mt-8"
+            >
+                <Briefcase size={20} /> Smart Recruiter
+            </button>
+             <button
+                onClick={() => {
+                    onOpenThemeGen();
+                    setIsMobileMenuOpen(false);
+                }}
+                className="mobile-nav-link text-xl font-black uppercase tracking-[0.2em] text-theme-text/50 hover:text-theme-accent transition-colors duration-300 flex items-center justify-center gap-3"
             >
                 <Wand2 size={20} /> Generative Theme
             </button>

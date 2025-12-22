@@ -1,15 +1,23 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
-import { X, ArrowRight, Lock, User, Plus, ExternalLink } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
+import { X, ArrowRight, Lock, User, Plus, ExternalLink, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { HOME_PROJECTS } from '../constants';
 import { Project } from '../types';
+
+type VibePersona = 'Standard' | 'ELI5' | 'VC Pitch' | 'Sci-Fi Narrator';
 
 const ProjectModal: React.FC<{ project: Project; onClose: () => void }> = ({ project, onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const currentYear = new Date().getFullYear();
+  
+  // Vibe Rewriter State
+  const [activePersona, setActivePersona] = useState<VibePersona>('Standard');
+  const [description, setDescription] = useState(project.description || '');
+  const [isRewriting, setIsRewriting] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -35,7 +43,6 @@ const ProjectModal: React.FC<{ project: Project; onClose: () => void }> = ({ pro
   }, []);
 
   const handleClose = () => {
-    // No context needed here as we are tearing down, but good to be safe if rapid clicks happen
     const tl = gsap.timeline({ onComplete: onClose, defaults: { ease: 'expo.inOut', duration: 0.8 } });
     if (contentRef.current) {
          tl.to(contentRef.current.children, { y: 20, opacity: 0, stagger: 0.02, duration: 0.4 })
@@ -45,6 +52,39 @@ const ProjectModal: React.FC<{ project: Project; onClose: () => void }> = ({ pro
     }
     if (overlayRef.current) {
         tl.to(overlayRef.current, { opacity: 0, duration: 0.4 }, '-=0.4');
+    }
+  };
+
+  const handleVibeShift = async (persona: VibePersona) => {
+    if (persona === 'Standard') {
+        setDescription(project.description || '');
+        setActivePersona(persona);
+        return;
+    }
+
+    if (isRewriting) return;
+    setIsRewriting(true);
+    setActivePersona(persona);
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+        const prompt = `Rewrite the following project description in the style of a "${persona}". 
+        Keep it concise (under 50 words). Maintain the core meaning but change the tone drastically.
+        
+        Original Description: "${project.description}"`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt
+        });
+
+        if (response.text) {
+            setDescription(response.text);
+        }
+    } catch (error) {
+        console.error("Vibe shift failed", error);
+    } finally {
+        setIsRewriting(false);
     }
   };
 
@@ -68,10 +108,46 @@ const ProjectModal: React.FC<{ project: Project; onClose: () => void }> = ({ pro
               </div>
               <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase leading-[0.9] text-theme-text">{project.title}</h2>
             </div>
+            
+            {/* Vibe Rewriter Section */}
             <div className="space-y-4">
-              <h4 className="text-[10px] uppercase tracking-widest text-theme-text/30 font-black flex items-center gap-2"><ArrowRight size={10} className="text-purple-600" /> Information</h4>
-              <p className="text-lg md:text-xl font-medium leading-relaxed text-theme-text/80">{project.description}</p>
+              <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] uppercase tracking-widest text-theme-text/30 font-black flex items-center gap-2">
+                      <ArrowRight size={10} className="text-purple-600" /> Information
+                  </h4>
+                  
+                  <div className="flex gap-1 bg-theme-text/5 p-1 rounded-full border border-theme-border">
+                      {['Standard', 'ELI5', 'VC Pitch', 'Sci-Fi Narrator'].map((persona) => (
+                          <button
+                              key={persona}
+                              onClick={() => handleVibeShift(persona as VibePersona)}
+                              disabled={isRewriting}
+                              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-wider transition-all duration-300 ${
+                                  activePersona === persona 
+                                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' 
+                                  : 'text-theme-text/40 hover:text-theme-text'
+                              }`}
+                          >
+                              {persona === 'Sci-Fi Narrator' ? 'Sci-Fi' : persona === 'VC Pitch' ? 'VC' : persona}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+              
+              <div className="relative min-h-[80px]">
+                   {isRewriting ? (
+                       <div className="absolute inset-0 flex items-center gap-2 text-purple-600">
+                           <Loader2 size={16} className="animate-spin" />
+                           <span className="text-xs font-bold uppercase tracking-widest">Rewriting Vibe...</span>
+                       </div>
+                   ) : (
+                       <p className="text-lg md:text-xl font-medium leading-relaxed text-theme-text/80 animate-in fade-in duration-500">
+                           {description}
+                       </p>
+                   )}
+              </div>
             </div>
+
             <div className="space-y-4">
               <h4 className="text-[10px] uppercase tracking-widest text-theme-text/30 font-black">Architecture</h4>
               <div className="flex flex-wrap gap-2">

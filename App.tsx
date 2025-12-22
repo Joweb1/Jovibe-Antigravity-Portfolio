@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -17,6 +18,9 @@ import Skills from './components/Skills';
 import AIAssistant from './components/AIAssistant';
 import CommandPalette from './components/CommandPalette';
 import ThemeGenerator from './components/ThemeGenerator';
+import StarField from './components/StarField';
+import SmartRecruiter from './components/SmartRecruiter';
+import VoiceControl from './components/VoiceControl';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -25,6 +29,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<'home' | 'archive' | 'about' | 'testimonials'>('home');
   const [isCmdOpen, setIsCmdOpen] = useState(false);
   const [isThemeGenOpen, setIsThemeGenOpen] = useState(false);
+  const [isRecruiterOpen, setIsRecruiterOpen] = useState(false);
   
   // Initialize theme based on localStorage or system preference
   const [isDark, setIsDark] = useState(() => {
@@ -172,6 +177,8 @@ const App: React.FC = () => {
           toggleTheme();
       } else if (section === 'generate-theme') {
           setIsThemeGenOpen(true);
+      } else if (section === 'recruiter') {
+          setIsRecruiterOpen(true);
       } else {
           // Scroll to ID
           if (view !== 'home') {
@@ -182,7 +189,7 @@ const App: React.FC = () => {
             }, 800);
           } else {
              const el = document.getElementById(section);
-             lenisRef.current?.scrollTo(el || 0, { behavior: 'smooth' });
+             lenisRef.current?.scrollTo(el || 0);
           }
       }
   };
@@ -202,33 +209,42 @@ const App: React.FC = () => {
         isOpen={isThemeGenOpen}
         onClose={() => setIsThemeGenOpen(false)}
       />
+      <SmartRecruiter 
+        isOpen={isRecruiterOpen}
+        onClose={() => setIsRecruiterOpen(false)}
+      />
+      <VoiceControl onNavigate={handleCmdNavigate} />
       
       {!loading && (
-        <div className="relative z-10 flex flex-col">
-          <Header 
-            isDark={isDark} 
-            onToggleTheme={toggleTheme} 
-            currentView={view}
-            onViewChange={switchView}
-            onOpenThemeGen={() => setIsThemeGenOpen(true)}
-          />
-          <main className="view-content flex-grow">
-            {view === 'home' && (
-              <>
-                <Hero />
-                <Skills />
-                <Services />
-                <Process />
-                <Work onShowArchive={() => switchView('archive')} />
-              </>
-            )}
-            {view === 'archive' && <Archive onBack={() => switchView('home')} />}
-            {view === 'about' && <About onBack={() => switchView('home')} />}
-            {view === 'testimonials' && <Testimonials onBack={() => switchView('home')} />}
-          </main>
-          {view === 'home' && <Footer />}
-          <AIAssistant />
-        </div>
+        <>
+          <StarField isDark={isDark} />
+          <div className="relative z-10 flex flex-col">
+            <Header 
+              isDark={isDark} 
+              onToggleTheme={toggleTheme} 
+              currentView={view}
+              onViewChange={switchView}
+              onOpenThemeGen={() => setIsThemeGenOpen(true)}
+              onOpenRecruiter={() => setIsRecruiterOpen(true)}
+            />
+            <main className="view-content flex-grow">
+              {view === 'home' && (
+                <>
+                  <Hero />
+                  <Skills />
+                  <Services />
+                  <Process />
+                  <Work onShowArchive={() => switchView('archive')} />
+                </>
+              )}
+              {view === 'archive' && <Archive onBack={() => switchView('home')} />}
+              {view === 'about' && <About onBack={() => switchView('home')} />}
+              {view === 'testimonials' && <Testimonials onBack={() => switchView('home')} />}
+            </main>
+            {view === 'home' && <Footer />}
+            <AIAssistant />
+          </div>
+        </>
       )}
     </div>
   );

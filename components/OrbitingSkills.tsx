@@ -19,69 +19,67 @@ const OrbitingSkills: React.FC = () => {
   const itemsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-        const items = itemsRef.current.filter(Boolean) as HTMLDivElement[];
-        // Increased radius to accommodate the much larger profile image
-        const radius = window.innerWidth < 768 ? 125 : 230;
-        
-        gsap.set(items, { 
-          x: 0, 
-          y: 0, 
-          scale: 0, 
-          opacity: 0 
-        });
+    const mm = gsap.matchMedia();
     
-        if (profileRef.current) {
-            gsap.fromTo(profileRef.current, 
-              { scale: 0, opacity: 0 },
-              { scale: 1, opacity: 1, duration: 1.2, ease: 'expo.out', delay: 0.8 }
-            );
-        }
-    
-        items.forEach((item, index) => {
-          const angle = (index / items.length) * Math.PI * 2;
-          const targetX = Math.cos(angle) * radius;
-          const targetY = Math.sin(angle) * radius;
-    
-          gsap.to(item, {
-            x: targetX,
-            y: targetY,
-            scale: 1,
-            opacity: 1,
-            duration: 1.8,
-            delay: 1.2 + (index * 0.1),
-            ease: 'expo.out'
-          });
-        });
-    
-        const rotationTl = gsap.to(orbitRef.current, {
-          rotation: 360,
-          duration: 25,
-          ease: 'none',
-          repeat: -1
-        });
-    
-        gsap.fromTo(rotationTl, 
-          { timeScale: 5 }, 
-          { 
-            timeScale: 1, 
-            duration: 4, 
-            ease: 'power3.inOut',
-            delay: 1.5 
-          }
-        );
-    
-        items.forEach((item) => {
-            gsap.to(item, {
-                rotation: -360,
-                duration: 25,
-                ease: 'none',
-                repeat: -1
-            });
-        });
-    }, containerRef);
+    mm.add({
+      isMobile: "(max-width: 767px)",
+      isDesktop: "(min-width: 768px)",
+    }, (context) => {
+      const { isMobile } = context.conditions as { isMobile: boolean };
+      const radius = isMobile ? 125 : 230;
+      
+      const items = itemsRef.current.filter(Boolean) as HTMLDivElement[];
+      
+      // Reset items state for clean animation re-run
+      gsap.set(items, { 
+        x: 0, 
+        y: 0, 
+        scale: 0, 
+        opacity: 0,
+        rotation: 0 
+      });
 
-    return () => ctx.revert();
+      if (profileRef.current) {
+          gsap.fromTo(profileRef.current, 
+            { scale: 0, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 1.2, ease: 'expo.out', delay: 0.5 }
+          );
+      }
+
+      items.forEach((item, index) => {
+        const angle = (index / items.length) * Math.PI * 2;
+        const targetX = Math.cos(angle) * radius;
+        const targetY = Math.sin(angle) * radius;
+
+        gsap.to(item, {
+          x: targetX,
+          y: targetY,
+          scale: 1,
+          opacity: 1,
+          duration: 1.8,
+          delay: 0.8 + (index * 0.1),
+          ease: 'expo.out'
+        });
+        
+        // Counter-rotation to keep icons upright
+        gsap.to(item, {
+            rotation: -360,
+            duration: 25,
+            ease: 'none',
+            repeat: -1
+        });
+      });
+
+      // Main orbit rotation
+      gsap.to(orbitRef.current, {
+        rotation: 360,
+        duration: 25,
+        ease: 'none',
+        repeat: -1
+      });
+    });
+
+    return () => mm.revert();
   }, []);
 
   return (
@@ -107,7 +105,7 @@ const OrbitingSkills: React.FC = () => {
           <div
             key={skill.name}
             ref={(el) => { itemsRef.current[i] = el; }}
-            className="absolute w-10 h-10 md:w-16 md:h-16 rounded-full bg-theme-bg border border-purple-500/20 shadow-sm flex items-center justify-center overflow-hidden p-2 md:p-3 transition-colors duration-700"
+            className="absolute w-10 h-10 md:w-16 md:h-16 rounded-full bg-theme-bg border border-purple-500/20 shadow-sm flex items-center justify-center overflow-hidden p-2 md:p-3 transition-colors duration-700 origin-center"
             style={{ 
                 boxShadow: `0 0 15px ${skill.color}20`,
                 borderColor: `${skill.color}40`
