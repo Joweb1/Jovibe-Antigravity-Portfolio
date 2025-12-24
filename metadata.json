@@ -1,5 +1,7 @@
 {
   "name": "Jonadab Uroh Portfolio",
   "description": "Full Stack Laravel Developer & AI Engineer specializing in Intelligent Systems and RAG Architecture.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
