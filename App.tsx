@@ -22,6 +22,7 @@ import StarField from './components/StarField';
 import SmartRecruiter from './components/SmartRecruiter';
 import VoiceControl from './components/VoiceControl';
 import NetworkStatus from './components/NetworkStatus';
+import AudioPermissionModal from './components/AudioPermissionModal';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [isCmdOpen, setIsCmdOpen] = useState(false);
   const [isThemeGenOpen, setIsThemeGenOpen] = useState(false);
   const [isRecruiterOpen, setIsRecruiterOpen] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   
   // Initialize theme based on localStorage or system preference
   const [isDark, setIsDark] = useState(() => {
@@ -134,6 +136,7 @@ const App: React.FC = () => {
     // Trigger welcome slightly after preloader removal for smoothness
     setTimeout(() => {
       setShouldWelcome(true);
+      setShowPermissionModal(true);
       ScrollTrigger.refresh();
     }, 500);
   }, []);
@@ -230,6 +233,15 @@ const App: React.FC = () => {
       {!loading && (
         <>
           <StarField isDark={isDark} />
+          
+          {/* Permission Modal - Only show on home view */}
+          {view === 'home' && (
+            <AudioPermissionModal 
+              isOpen={showPermissionModal}
+              onClose={() => setShowPermissionModal(false)}
+            />
+          )}
+
           <div className="relative z-10 flex flex-col">
             <Header 
               isDark={isDark} 
