@@ -232,7 +232,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
           },
           tools: [{ functionDeclarations: [navigateTool, openRecruiterTool, toggleThemeTool] }],
           systemInstruction: fullSystemInstruction // Pass as simple string to avoid format errors
@@ -525,4 +525,94 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter
                 </h3>
                 
                 <p className="text-xs font-medium text-theme-text/60 leading-relaxed mb-8 relative z-10">
-                   The neural link was closed by the server. This may be due
+                   The neural link was closed by the server. This may be due to inactivity or network conditions.
+                </p>
+                
+                <div className="grid grid-cols-2 gap-3 w-full relative z-10">
+                    <button 
+                        onClick={() => setPermissionError(false)}
+                        className="py-3 px-4 rounded-xl border border-theme-border text-[10px] uppercase tracking-widest font-black text-theme-text/40 hover:text-theme-text hover:bg-theme-text/5 transition-colors"
+                    >
+                        Dismiss
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setPermissionError(false);
+                            startSession('interactive');
+                        }}
+                        className="py-3 px-4 rounded-xl bg-theme-text text-theme-bg text-[10px] uppercase tracking-widest font-black hover:bg-purple-600 hover:text-white transition-colors shadow-lg shadow-purple-500/20"
+                    >
+                        Reconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* FLOATING CONTROL */}
+      <div className="fixed bottom-6 left-6 md:bottom-10 md:left-10 z-50 flex flex-col items-start gap-4">
+        
+        {/* Dynamic Hints Tooltip */}
+        {showHints && !isActive && !isChatOpen && (
+          <div className="absolute bottom-full left-0 mb-4 w-64 pointer-events-none">
+            <div className="bg-theme-bg border border-theme-border rounded-xl p-4 shadow-xl relative animate-in fade-in slide-in-from-bottom-2 duration-500">
+               <div className="flex items-start gap-3">
+                 <div className="w-8 h-8 rounded-full bg-purple-600/10 flex items-center justify-center shrink-0">
+                    <MessageSquare size={14} className="text-purple-600" />
+                 </div>
+                 <div>
+                   <p className="text-[9px] uppercase tracking-widest font-black text-theme-text/40 mb-1">Voice Command</p>
+                   <p key={currentHintIndex} className="text-xs font-bold text-theme-text animate-in fade-in duration-300">
+                      "{HINTS[currentHintIndex]}"
+                   </p>
+                 </div>
+               </div>
+               <div className="absolute -bottom-2 left-6 w-4 h-4 bg-theme-bg border-b border-r border-theme-border rotate-45" />
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <canvas 
+              ref={canvasRef} 
+              width="80" 
+              height="80" 
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" 
+            />
+            
+            <button
+              onClick={toggleVoice}
+              className={`relative z-10 w-14 h-14 rounded-full border border-theme-border flex items-center justify-center transition-all duration-300 ${
+                isActive 
+                  ? status === 'speaking' ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(52,211,153,0.5)]' : 'bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.5)]'
+                  : 'bg-theme-bg text-theme-text hover:bg-theme-text/5'
+              }`}
+            >
+              {status === 'connecting' || status === 'processing' ? (
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : isActive ? (
+                  <Mic size={20} className={status === 'speaking' ? 'animate-pulse' : ''} />
+              ) : (
+                  <MicOff size={20} className="opacity-50" />
+              )}
+            </button>
+          </div>
+
+          <div className={`transition-all duration-500 overflow-hidden ${isActive ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+             <div className="bg-theme-bg/80 backdrop-blur-md border border-theme-border rounded-full px-4 py-2 flex items-center gap-2 whitespace-nowrap">
+                 <div className={`w-2 h-2 rounded-full animate-pulse ${status === 'speaking' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                 <span className="text-[10px] uppercase tracking-widest font-black text-theme-text">
+                    {status === 'listening' ? 'Listening...' : 
+                     status === 'speaking' ? 'Speaking...' : 
+                     status === 'processing' ? 'Thinking...' : 'Connecting...'}
+                 </span>
+             </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default VoiceControl;
