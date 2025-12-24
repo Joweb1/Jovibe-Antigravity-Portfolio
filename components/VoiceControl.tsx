@@ -180,8 +180,11 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
           responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
+          },
           tools: [{ functionDeclarations: [navigateTool] }],
-          systemInstruction: systemContext
+          systemInstruction: { parts: [{ text: systemContext }] }
         },
         callbacks: {
           onopen: () => {
@@ -195,11 +198,11 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
                 setTimeout(() => {
                     sessionPromise.then(session => {
                         session.sendRealtimeInput({
-                            content: {
+                            content: [{
                                 parts: [{
                                     text: "Greet the visitor warmly to Jonadab's portfolio. Briefly mention that you can navigate the site or answer questions about his work."
                                 }]
-                            }
+                            }]
                         });
                     });
                 }, 500);
@@ -249,6 +252,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
           },
           onclose: (e) => {
               console.log("Session closed by server", e);
+              // Only consider it an error if it closed prematurely and NOT during the auto-welcome shutdown
               if (isActiveRef.current) {
                   setPermissionError(true);
               }
