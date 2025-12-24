@@ -7,6 +7,8 @@ import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES } from '../constants';
 
 interface VoiceControlProps {
   onNavigate: (section: string) => void;
+  shouldWelcome: boolean;
+  isChatOpen: boolean;
 }
 
 const HINTS = [
@@ -19,7 +21,7 @@ const HINTS = [
   "Switch to light mode"
 ];
 
-const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
+const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, isChatOpen }) => {
   const [isActive, setIsActive] = useState(false);
   const [volume, setVolume] = useState(0);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking' | 'processing'>('idle');
@@ -40,6 +42,23 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
   
   const sessionRef = useRef<Promise<any> | null>(null);
   const hintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasWelcomedRef = useRef(false);
+
+  // Trigger welcome when app loads
+  useEffect(() => {
+    if (shouldWelcome && !isActive && !hasWelcomedRef.current) {
+        hasWelcomedRef.current = true;
+        // Attempt to start session for auto-welcome.
+        // If it fails (e.g., no user interaction yet), we handle it gracefully.
+        startSession(true).catch(err => {
+             // We logged it inside startSession, just ensure state is reset
+             if (isActive) {
+                 setStatus('idle');
+                 setIsActive(false);
+             }
+        }); 
+    }
+  }, [shouldWelcome]);
 
   // Cycle hints
   useEffect(() => {
@@ -100,8 +119,8 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
     },
   };
 
-  const startSession = async () => {
-    setShowHints(false); // Hide hints when interaction starts
+  const startSession = async (isWelcome = false) => {
+    setShowHints(false);
     try {
       setStatus('connecting');
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -110,6 +129,8 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
       inputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
+      // Attempt to get microphone stream
+      // This will likely fail on first load if user hasn't interacted with page yet
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       const sessionPromise = ai.live.connect({
@@ -125,6 +146,15 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
             setStatus('listening');
             setIsActive(true);
             setupAudioInput(sessionPromise);
+
+            // Auto-welcome message
+            if (isWelcome) {
+                sessionPromise.then(session => {
+                    session.sendRealtimeInput({
+                        text: "Greet the visitor warmly to Jonadab's portfolio. Briefly mention that you can navigate the site or answer questions about his work."
+                    });
+                });
+            }
           },
           onmessage: async (msg: LiveServerMessage) => {
             // Handle Audio Output (Speaking back)
@@ -132,9 +162,11 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
             if (audioData) {
               setStatus('speaking');
               await playAudio(audioData);
-              // Reset to listening after a rough estimate if needed, or rely on end of playback
-              // Ideally, we wait for playback to finish, but for UI feedback:
-              setTimeout(() => setStatus('listening'), 2000); 
+              // Only switch back to listening if not welcome mode
+              // If welcome mode, we keep 'speaking' status until it auto-disconnects
+              if (!isWelcome) {
+                setTimeout(() => setStatus('listening'), 2000); 
+              }
             }
 
             // Handle Tool Calls (Navigation)
@@ -158,6 +190,20 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
                 }
               });
             }
+
+            // Auto-disconnect after welcome message logic
+            if (isWelcome && msg.serverContent?.turnComplete) {
+                 const ctx = outputContextRef.current;
+                 const finishTime = nextStartTimeRef.current;
+                 const now = ctx?.currentTime || 0;
+                 // Calculate remaining time in ms until audio finishes playing
+                 const remaining = (finishTime - now) * 1000;
+                 
+                 // Schedule stopSession after audio completes + buffer
+                 setTimeout(() => {
+                     stopSession();
+                 }, Math.max(0, remaining) + 500); 
+            }
           },
           onclose: () => stopSession(),
           onerror: (e) => {
@@ -170,9 +216,19 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
       sessionRef.current = sessionPromise;
 
     } catch (err) {
+      // Gracefully handle permission errors
+      if (isWelcome) {
+          console.debug("Auto-welcome voice skipped (waiting for user interaction).");
+          setStatus('idle');
+          setIsActive(false);
+          // Return early to prevent re-throwing for this specific case
+          return;
+      }
+      
       console.error("Failed to start voice session", err);
       setStatus('idle');
       setIsActive(false);
+      throw err;
     }
   };
 
@@ -335,8 +391,8 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
   return (
     <div className="fixed bottom-6 left-6 md:bottom-10 md:left-10 z-50 flex flex-col items-start gap-4">
       
-      {/* Dynamic Hints Tooltip */}
-      {showHints && !isActive && (
+      {/* Dynamic Hints Tooltip - Hidden when Chat is Open or Voice Active */}
+      {showHints && !isActive && !isChatOpen && (
         <div className="absolute bottom-full left-0 mb-4 w-64 pointer-events-none">
           <div className="bg-theme-bg border border-theme-border rounded-xl p-4 shadow-xl relative animate-in fade-in slide-in-from-bottom-2 duration-500">
              <div className="flex items-start gap-3">

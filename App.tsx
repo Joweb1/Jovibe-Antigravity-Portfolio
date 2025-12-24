@@ -26,6 +26,8 @@ gsap.registerPlugin(ScrollTrigger);
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [shouldWelcome, setShouldWelcome] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [view, setView] = useState<'home' | 'archive' | 'about' | 'testimonials'>('home');
   const [isCmdOpen, setIsCmdOpen] = useState(false);
   const [isThemeGenOpen, setIsThemeGenOpen] = useState(false);
@@ -128,9 +130,12 @@ const App: React.FC = () => {
 
   const handleLoadingComplete = useCallback(() => {
     setLoading(false);
-    setTimeout(() => {
+    // Trigger welcome immediately after preloader removal
+    // Use requestAnimationFrame instead of timeout to keep permission context active if possible
+    requestAnimationFrame(() => {
+      setShouldWelcome(true);
       ScrollTrigger.refresh();
-    }, 150);
+    });
   }, []);
 
   const switchView = (newView: 'home' | 'archive' | 'about' | 'testimonials') => {
@@ -198,7 +203,8 @@ const App: React.FC = () => {
     <div className="relative min-h-screen transition-colors duration-700 ease-luxury bg-theme-bg text-theme-text selection:bg-theme-accent selection:text-white">
       <div className="grain-overlay" />
       <CustomCursor />
-      <Preloader onComplete={handleLoadingComplete} />
+      {loading && <Preloader onComplete={handleLoadingComplete} />}
+      
       <CommandPalette 
         isOpen={isCmdOpen} 
         onClose={() => setIsCmdOpen(false)}
@@ -213,7 +219,11 @@ const App: React.FC = () => {
         isOpen={isRecruiterOpen}
         onClose={() => setIsRecruiterOpen(false)}
       />
-      <VoiceControl onNavigate={handleCmdNavigate} />
+      <VoiceControl 
+        onNavigate={handleCmdNavigate} 
+        shouldWelcome={shouldWelcome}
+        isChatOpen={isChatOpen}
+      />
       
       {!loading && (
         <>
@@ -242,7 +252,7 @@ const App: React.FC = () => {
               {view === 'testimonials' && <Testimonials onBack={() => switchView('home')} />}
             </main>
             {view === 'home' && <Footer />}
-            <AIAssistant />
+            <AIAssistant isOpen={isChatOpen} onToggle={setIsChatOpen} />
           </div>
         </>
       )}

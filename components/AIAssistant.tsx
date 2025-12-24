@@ -43,8 +43,12 @@ interface Message {
   text: string;
 }
 
-const AIAssistant: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface AIAssistantProps {
+    isOpen: boolean;
+    onToggle: (isOpen: boolean) => void;
+}
+
+const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onToggle }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: "Systems online. I am Jonadab's digital assistant. How may I clarify his expertise for you?" }
@@ -135,7 +139,7 @@ const AIAssistant: React.FC = () => {
       {/* Toggle Button */}
       <button
         ref={toggleRef}
-        onClick={() => setIsOpen(true)}
+        onClick={() => onToggle(true)}
         className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-50 w-14 h-14 bg-theme-bg border border-theme-border rounded-full shadow-[0_0_30px_rgba(147,51,234,0.3)] flex items-center justify-center group hover:scale-110 transition-transform duration-300"
       >
          <div className="absolute inset-0 bg-purple-600/10 rounded-full animate-ping opacity-75" />
@@ -162,7 +166,7 @@ const AIAssistant: React.FC = () => {
              </div>
            </div>
            <button 
-             onClick={() => setIsOpen(false)}
+             onClick={() => onToggle(false)}
              className="p-2 hover:bg-theme-text/5 rounded-full transition-colors text-theme-text/50 hover:text-theme-text"
            >
              <X size={16} />
