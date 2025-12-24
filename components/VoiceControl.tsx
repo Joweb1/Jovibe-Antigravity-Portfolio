@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage } from "@google/genai";
-import { Mic, MicOff, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, MessageSquare, X } from 'lucide-react';
+import gsap from 'gsap';
 import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES } from '../constants';
 
 interface VoiceControlProps {
@@ -47,12 +48,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
   useEffect(() => {
     if (shouldWelcome && !isActive && !hasWelcomedRef.current) {
         hasWelcomedRef.current = true;
-        // Attempt to start session for auto-welcome.
-        startSession(true).catch(err => {
-             console.debug("Auto-welcome skipped or failed", err);
-             // Ensure state is clean
-             if (isActive) stopSession();
-        }); 
+        startSession(true); // Start in welcome mode
     }
   }, [shouldWelcome]);
 
@@ -116,21 +112,15 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
   };
 
   const startSession = async (isWelcome = false) => {
-    // Ensure any previous session is fully cleaned up
-    stopSession();
-    
     setShowHints(false);
-    setStatus('connecting');
-
     try {
+      setStatus('connecting');
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-      // Initialize Audio Contexts safely
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      inputContextRef.current = new AudioCtx({ sampleRate: 16000 });
-      outputContextRef.current = new AudioCtx({ sampleRate: 24000 });
+      // Initialize Audio Contexts
+      inputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      outputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
-      // Attempt to get microphone stream
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       const sessionPromise = ai.live.connect({
@@ -162,25 +152,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
             if (audioData) {
               setStatus('speaking');
               await playAudio(audioData);
-            }
-
-            // --- Auto-Deactivation for Welcome Message ---
-            if (isWelcome) {
-                // If the model's turn is complete, calculate when audio finishes and stop session
-                if (msg.serverContent?.turnComplete) {
-                    const ctx = outputContextRef.current;
-                    const remainingTime = ctx ? (nextStartTimeRef.current - ctx.currentTime) * 1000 : 0;
-                    
-                    // Add a small buffer (800ms) to ensure audio fully fades/ends before cutting off
-                    setTimeout(() => {
-                        stopSession();
-                    }, Math.max(0, remainingTime) + 800);
-                }
-            } else {
-                // Normal behavior: Switch back to listening after speaking
-                if (audioData) {
-                    setTimeout(() => setStatus('listening'), 2000); 
-                }
+              setTimeout(() => setStatus('listening'), 2000); 
             }
 
             // Handle Tool Calls (Navigation)
@@ -205,13 +177,9 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
               });
             }
           },
-          onclose: () => {
-              console.log("Session closed by server");
-              stopSession();
-          },
+          onclose: () => stopSession(),
           onerror: (e) => {
             console.error("Gemini Live Error", e);
-            // On error, we just stop the session cleanly
             stopSession();
           }
         }
@@ -220,17 +188,9 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       sessionRef.current = sessionPromise;
 
     } catch (err) {
-      if (isWelcome) {
-          console.debug("Auto-welcome voice skipped.");
-          stopSession();
-          return;
-      }
       console.error("Failed to start voice session", err);
-      stopSession();
-      // Only alert if it's a manual activation attempt
-      if (!isWelcome) {
-         // Optional: alert("Connection failed. Please check your network or microphone permissions.");
-      }
+      setStatus('idle');
+      setIsActive(false);
     }
   };
 
@@ -238,17 +198,10 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     const ctx = inputContextRef.current;
     if(!ctx || !streamRef.current) return;
     
-    // Create source from stream
     sourceRef.current = ctx.createMediaStreamSource(streamRef.current);
-    
-    // Create processor
-    // Use a larger buffer size to reduce processing overhead if needed, but 4096 is standard for 16kHz
     processorRef.current = ctx.createScriptProcessor(4096, 1, 1);
     
     processorRef.current.onaudioprocess = (e) => {
-      // If we are not active, do nothing (safety check)
-      if (!isActive) return;
-
       const inputData = e.inputBuffer.getChannelData(0);
       
       // Volume calculation for visualizer
@@ -281,7 +234,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
             data: b64
           }
         });
-      }).catch(e => console.error("Send input error", e));
+      });
     };
 
     sourceRef.current.connect(processorRef.current);
@@ -293,11 +246,6 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     if (!ctx) return;
 
     try {
-      // Ensure context is running (fixes "welcome message not playing")
-      if (ctx.state === 'suspended') {
-         await ctx.resume();
-      }
-
       // Base64 Decode
       const binaryString = atob(base64String);
       const len = binaryString.length;
@@ -341,42 +289,18 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     setVolume(0);
     setShowHints(true); // Bring back hints when session ends
 
-    try {
-        if (processorRef.current) {
-            processorRef.current.disconnect();
-            processorRef.current.onaudioprocess = null;
-            processorRef.current = null;
-        }
-        if (sourceRef.current) {
-            sourceRef.current.disconnect();
-            sourceRef.current = null;
-        }
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-        
-        // Close audio contexts cleanly with check
-        if (inputContextRef.current) {
-            const ctx = inputContextRef.current;
-            inputContextRef.current = null; // Prevent double closure
-            if (ctx.state !== 'closed') {
-                ctx.close().catch(e => console.warn("Input ctx close error", e));
-            }
-        }
-        if (outputContextRef.current) {
-            const ctx = outputContextRef.current;
-            outputContextRef.current = null; // Prevent double closure
-            if (ctx.state !== 'closed') {
-                ctx.close().catch(e => console.warn("Output ctx close error", e));
-            }
-        }
-    } catch (e) {
-        console.error("Error during session cleanup", e);
+    if (processorRef.current) {
+        processorRef.current.disconnect();
+        processorRef.current.onaudioprocess = null;
     }
+    if (sourceRef.current) sourceRef.current.disconnect();
+    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+    
+    // Close audio contexts to free resources
+    if (inputContextRef.current) inputContextRef.current.close();
+    if (outputContextRef.current) outputContextRef.current.close();
     
     nextStartTimeRef.current = 0;
-    sessionRef.current = null;
   };
 
   // Visualizer Animation

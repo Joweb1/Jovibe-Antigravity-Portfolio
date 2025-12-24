@@ -131,12 +131,11 @@ const App: React.FC = () => {
 
   const handleLoadingComplete = useCallback(() => {
     setLoading(false);
-    // Trigger welcome immediately after preloader removal
-    // Use requestAnimationFrame instead of timeout to keep permission context active if possible
-    requestAnimationFrame(() => {
+    // Trigger welcome slightly after preloader removal for smoothness
+    setTimeout(() => {
       setShouldWelcome(true);
       ScrollTrigger.refresh();
-    });
+    }, 500);
   }, []);
 
   const switchView = (newView: 'home' | 'archive' | 'about' | 'testimonials') => {
@@ -204,8 +203,9 @@ const App: React.FC = () => {
     <div className="relative min-h-screen transition-colors duration-700 ease-luxury bg-theme-bg text-theme-text selection:bg-theme-accent selection:text-white">
       <div className="grain-overlay" />
       <CustomCursor />
-      <NetworkStatus />
       {loading && <Preloader onComplete={handleLoadingComplete} />}
+      
+      <NetworkStatus />
       
       <CommandPalette 
         isOpen={isCmdOpen} 
