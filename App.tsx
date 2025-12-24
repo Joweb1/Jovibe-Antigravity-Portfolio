@@ -21,6 +21,7 @@ import ThemeGenerator from './components/ThemeGenerator';
 import StarField from './components/StarField';
 import SmartRecruiter from './components/SmartRecruiter';
 import VoiceControl from './components/VoiceControl';
+import NetworkStatus from './components/NetworkStatus';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -203,6 +204,7 @@ const App: React.FC = () => {
     <div className="relative min-h-screen transition-colors duration-700 ease-luxury bg-theme-bg text-theme-text selection:bg-theme-accent selection:text-white">
       <div className="grain-overlay" />
       <CustomCursor />
+      <NetworkStatus />
       {loading && <Preloader onComplete={handleLoadingComplete} />}
       
       <CommandPalette 
