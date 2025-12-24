@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import gsap from 'gsap';
 import { Search, Command, ArrowRight, Sun, Moon, Briefcase, User, Mail, Zap, Quote, Wand2 } from 'lucide-react';
@@ -73,7 +74,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
       <div 
         ref={overlayRef} 
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0"
+        className="absolute inset-0 bg-theme-bg/80 backdrop-blur-sm opacity-0"
       />
       
       <div 

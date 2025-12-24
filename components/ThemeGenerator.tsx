@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import gsap from 'gsap';
@@ -124,7 +125,7 @@ const ThemeGenerator: React.FC<ThemeGeneratorProps> = ({ isOpen, onClose }) => {
       <div 
         ref={overlayRef} 
         onClick={onClose}
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm opacity-0" 
+        className="absolute inset-0 bg-theme-bg/80 backdrop-blur-sm opacity-0" 
       />
       
       <div 

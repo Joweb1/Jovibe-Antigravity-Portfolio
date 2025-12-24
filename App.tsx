@@ -228,6 +228,8 @@ const App: React.FC = () => {
         onNavigate={handleCmdNavigate} 
         shouldWelcome={shouldWelcome}
         isChatOpen={isChatOpen}
+        onOpenRecruiter={() => setIsRecruiterOpen(true)}
+        onToggleTheme={toggleTheme}
       />
       
       {!loading && (

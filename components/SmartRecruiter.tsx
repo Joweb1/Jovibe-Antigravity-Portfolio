@@ -109,7 +109,7 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
       <div 
         ref={overlayRef} 
         onClick={onClose}
-        className="absolute inset-0 bg-black/80 backdrop-blur-md opacity-0" 
+        className="absolute inset-0 bg-theme-bg/80 backdrop-blur-md opacity-0" 
       />
       
       <div 

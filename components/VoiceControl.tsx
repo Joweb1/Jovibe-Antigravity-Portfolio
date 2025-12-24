@@ -3,10 +3,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
 import { Mic, MicOff, MessageSquare, AudioLines, X, CheckCircle } from 'lucide-react';
 import gsap from 'gsap';
-import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES } from '../constants';
+import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES, TESTIMONIALS } from '../constants';
 
 interface VoiceControlProps {
   onNavigate: (section: string) => void;
+  onOpenRecruiter: () => void;
+  onToggleTheme: () => void;
   shouldWelcome: boolean;
   isChatOpen: boolean;
 }
@@ -15,13 +17,13 @@ const HINTS = [
   "Take me to your latest work",
   "Tell me about Jonadab",
   "Show me the services",
-  "Go to the process section",
+  "Open the Smart Recruiter",
+  "Switch to light mode",
   "Navigate to testimonials",
-  "Contact Jonadab",
-  "Switch to light mode"
+  "Contact Jonadab"
 ];
 
-const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, isChatOpen }) => {
+const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter, onToggleTheme, shouldWelcome, isChatOpen }) => {
   const [isActive, setIsActive] = useState(false);
   const isActiveRef = useRef(false);
   const [volume, setVolume] = useState(0);
@@ -75,10 +77,35 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     };
   }, [showHints]);
 
-  // Construct System Instruction with Context
-  const systemContext = `
+  // Generate RICH Context for the System Instruction
+  const projectContext = ARCHIVE_PROJECTS.map(p => 
+    `PROJECT: ${p.title} (${p.category})
+     STATUS: ${p.status || 'Active'}
+     DESCRIPTION: ${p.description}
+     TECH STACK: ${p.techStack?.join(', ')}
+     FEATURES: ${p.features?.join(', ')}`
+  ).join('\n\n');
+
+  const testimonialContext = TESTIMONIALS.map(t => 
+    `REVIEW: "${t.quote}"
+     AUTHOR: ${t.author}, ${t.role} at ${t.company}`
+  ).join('\n\n');
+
+  const skillsContext = SKILL_CATEGORIES.map(c => 
+    `CATEGORY: ${c.name}
+     SKILLS: ${c.skills.join(', ')}`
+  ).join('\n');
+
+  // Base System Instruction
+  const baseSystemContext = `
     You are the intelligent voice interface for Jonadab Uroh's portfolio.
     
+    CAPABILITIES:
+    - Navigate to sections (Home, Work, Services, etc.)
+    - Open the 'Smart Recruiter' tool (for compatibility analysis)
+    - Toggle Light/Dark themes
+    - Explain specific projects, skills, and testimonials in detail
+
     WEBSITE SECTIONS (ID to use for navigation):
     - 'home' (Hero, Intro)
     - 'work' (Projects, Case Studies)
@@ -89,19 +116,24 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     - 'archive' (All Projects)
     - 'contact' (Footer)
 
-    PROFILE CONTEXT:
-    - Name: Jonadab Uroh
-    - Role: Full Stack Laravel Developer & AI Engineer
-    - Skills: ${SKILL_CATEGORIES.map(s => s.name + ': ' + s.skills.join(', ')).join('; ')}
-    - Projects: ${ARCHIVE_PROJECTS.map(p => `${p.title} (${p.category})`).join(', ')}
-    - Services: ${SERVICES.map(s => s.title).join(', ')}
+    DATA KNOWLEDGE BASE:
+    
+    === SKILLS & EXPERTISE ===
+    ${skillsContext}
+
+    === TESTIMONIALS ===
+    ${testimonialContext}
+
+    === PROJECTS ===
+    ${projectContext}
 
     RULES:
-    1. **Speak Back**: Always reply verbally to the user. Keep responses concise, professional, and friendly (under 2 sentences).
-    2. **Navigate**: If the user's intent is to see a section (e.g., "Show me work", "Go to about"), say something like "Navigating to the Work section" AND call the 'navigate' tool immediately.
-    3. **Explain & Navigate**: If asked "Tell me about Jonadab", provide a brief 1-sentence summary of his role/expertise, then say "Taking you to his profile" and call the 'navigate' tool with section 'about'.
-    4. **Unclear Requests**: If the request is unclear, politely say "I didn't catch that. You can ask me to navigate to Work, Services, or About."
-    5. **Personality**: You are helpful, futuristic, and precise.
+    1. **Speak Back**: Always reply verbally. Keep responses concise (under 2 sentences) unless asked for details.
+    2. **Recruiter Tool**: If the user mentions "hiring", "job", "compatibility", "recruiter", or "pitch", say "Opening the Smart Recruiter module" and call the 'openRecruiter' tool.
+    3. **Theme**: If the user says "dark mode", "light mode", "switch theme", call the 'toggleTheme' tool.
+    4. **Navigate**: If the user wants to go to a section, say "Navigating..." and call 'navigate'.
+    5. **Explain**: If asked about a project, use the context to give a smart summary.
+    6. **Personality**: You are helpful, futuristic, and precise.
   `;
 
   const navigateTool: FunctionDeclaration = {
@@ -120,6 +152,18 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     },
   };
 
+  const openRecruiterTool: FunctionDeclaration = {
+    name: 'openRecruiter',
+    description: 'Open the Smart Recruiter analysis tool modal.',
+    parameters: { type: Type.OBJECT, properties: {} },
+  };
+
+  const toggleThemeTool: FunctionDeclaration = {
+    name: 'toggleTheme',
+    description: 'Toggle the website theme between light and dark mode.',
+    parameters: { type: Type.OBJECT, properties: {} },
+  };
+
   // Global listener to start session on user interaction (triggered by App's AudioPermissionModal)
   useEffect(() => {
     if (shouldWelcome && !hasWelcomedRef.current) {
@@ -129,7 +173,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
          console.log("User interaction detected, starting session...");
          
          try {
-            await startSession(true);
+            await startSession('welcome');
          } catch (err) {
             console.debug("Auto-welcome failed", err);
          }
@@ -151,7 +195,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     }
   }, [shouldWelcome]);
 
-  const startSession = async (isWelcome = false) => {
+  const startSession = async (mode: 'interactive' | 'welcome' = 'interactive') => {
     await stopSession();
     
     setShowHints(false);
@@ -176,6 +220,13 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
 
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
+      // Instruct the model to speak immediately based on mode
+      const modeInstruction = mode === 'welcome' 
+        ? "IMPORTANT: You are initiating the conversation. IMMMEDIATELY welcome the visitor to Jonadab's portfolio. Introduce yourself as his AI agent. Do not wait for input. Speak now."
+        : "IMPORTANT: The user has just activated you manually. IMMMEDIATELY say 'Hello, how can I help?' Do not wait for input. Speak now.";
+
+      const fullSystemInstruction = `${modeInstruction}\n\n${baseSystemContext}`;
+
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
@@ -183,8 +234,8 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
           },
-          tools: [{ functionDeclarations: [navigateTool] }],
-          systemInstruction: { parts: [{ text: systemContext }] }
+          tools: [{ functionDeclarations: [navigateTool, openRecruiterTool, toggleThemeTool] }],
+          systemInstruction: fullSystemInstruction // Pass as simple string to avoid format errors
         },
         callbacks: {
           onopen: () => {
@@ -193,20 +244,6 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
             setIsActive(true);
             isActiveRef.current = true;
             setupAudioInput(sessionPromise);
-
-            if (isWelcome) {
-                setTimeout(() => {
-                    sessionPromise.then(session => {
-                        session.sendRealtimeInput({
-                            content: [{
-                                parts: [{
-                                    text: "Greet the visitor warmly to Jonadab's portfolio. Briefly mention that you can navigate the site or answer questions about his work."
-                                }]
-                            }]
-                        });
-                    });
-                }, 500);
-            }
           },
           onmessage: async (msg: LiveServerMessage) => {
             const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
@@ -215,7 +252,8 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
               await playAudio(audioData);
             }
 
-            if (isWelcome) {
+            // Auto-close logic only for welcome mode
+            if (mode === 'welcome') {
                 if (msg.serverContent?.turnComplete) {
                     const ctx = outputContextRef.current;
                     const remainingTime = ctx ? (nextStartTimeRef.current - ctx.currentTime) * 1000 : 0;
@@ -237,30 +275,36 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
                 if (fc.name === 'navigate') {
                   console.log("Navigating to:", fc.args.section);
                   onNavigate(fc.args.section);
-                  sessionPromise.then(session => {
+                } else if (fc.name === 'openRecruiter') {
+                    console.log("Opening Recruiter");
+                    onOpenRecruiter();
+                } else if (fc.name === 'toggleTheme') {
+                    console.log("Toggling Theme");
+                    onToggleTheme();
+                }
+
+                sessionPromise.then(session => {
                     session.sendToolResponse({
                       functionResponses: {
                         id: fc.id,
                         name: fc.name,
-                        response: { result: 'Navigated successfully' }
+                        response: { result: 'Action executed successfully' }
                       }
                     });
-                  });
-                }
+                });
               });
             }
           },
           onclose: (e) => {
               console.log("Session closed by server", e);
-              // Only consider it an error if it closed prematurely and NOT during the auto-welcome shutdown
-              if (isActiveRef.current) {
+              if (isActiveRef.current && mode === 'interactive') {
                   setPermissionError(true);
               }
               stopSession();
           },
           onerror: (e) => {
             console.error("Gemini Live Error", e);
-            if (isActiveRef.current) {
+            if (isActiveRef.current && mode === 'interactive') {
                 setPermissionError(true);
             }
             stopSession();
@@ -271,7 +315,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       sessionRef.current = sessionPromise;
 
     } catch (err) {
-      if (isWelcome) {
+      if (mode === 'welcome') {
           console.debug("Auto-welcome failed.", err);
           stopSession();
           return;
@@ -313,14 +357,20 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       }
       const b64 = btoa(binary);
 
-      sessionPromise.then(session => {
-        session.sendRealtimeInput({
-          media: {
-            mimeType: 'audio/pcm;rate=16000',
-            data: b64
-          }
-        });
-      }).catch(e => console.error("Send input error", e));
+      // Only stream if active
+      if (isActiveRef.current) {
+          sessionPromise.then(session => {
+            session.sendRealtimeInput({
+              media: {
+                mimeType: 'audio/pcm;rate=16000',
+                data: b64
+              }
+            });
+          }).catch(e => {
+              // Suppress errors during shutdown
+              if (isActiveRef.current) console.error("Send input error", e);
+          });
+      }
     };
 
     sourceRef.current.connect(processorRef.current);
@@ -454,7 +504,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     if (isActiveRef.current) {
       stopSession();
     } else {
-      startSession();
+      startSession('interactive');
     }
   };
 
@@ -463,7 +513,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       {/* ERROR MODAL */}
       {permissionError && (
         <div className="fixed inset-0 z-[100000] flex items-center justify-center p-6">
-            <div ref={overlayRef} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setPermissionError(false)} />
+            <div ref={overlayRef} className="absolute inset-0 bg-theme-bg/80 backdrop-blur-md" onClick={() => setPermissionError(false)} />
             <div ref={modalRef} className="relative bg-theme-bg/90 backdrop-blur-2xl border border-theme-border p-8 rounded-2xl max-w-sm w-full shadow-[0_0_50px_rgba(147,51,234,0.2)] flex flex-col items-center text-center overflow-hidden">
                 <div className="relative w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 text-red-500 ring-1 ring-red-500/20 shadow-lg shadow-red-500/10">
                    <MicOff size={24} />
@@ -475,94 +525,4 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
                 </h3>
                 
                 <p className="text-xs font-medium text-theme-text/60 leading-relaxed mb-8 relative z-10">
-                   The neural link was closed by the server. This may be due to inactivity or network conditions.
-                </p>
-                
-                <div className="grid grid-cols-2 gap-3 w-full relative z-10">
-                    <button 
-                        onClick={() => setPermissionError(false)}
-                        className="py-3 px-4 rounded-xl border border-theme-border text-[10px] uppercase tracking-widest font-black text-theme-text/40 hover:text-theme-text hover:bg-theme-text/5 transition-colors"
-                    >
-                        Dismiss
-                    </button>
-                    <button 
-                        onClick={() => {
-                            setPermissionError(false);
-                            startSession();
-                        }}
-                        className="py-3 px-4 rounded-xl bg-theme-text text-theme-bg text-[10px] uppercase tracking-widest font-black hover:bg-purple-600 hover:text-white transition-colors shadow-lg shadow-purple-500/20"
-                    >
-                        Reconnect
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* FLOATING CONTROL */}
-      <div className="fixed bottom-6 left-6 md:bottom-10 md:left-10 z-50 flex flex-col items-start gap-4">
-        
-        {/* Dynamic Hints Tooltip */}
-        {showHints && !isActive && !isChatOpen && (
-          <div className="absolute bottom-full left-0 mb-4 w-64 pointer-events-none">
-            <div className="bg-theme-bg border border-theme-border rounded-xl p-4 shadow-xl relative animate-in fade-in slide-in-from-bottom-2 duration-500">
-               <div className="flex items-start gap-3">
-                 <div className="w-8 h-8 rounded-full bg-purple-600/10 flex items-center justify-center shrink-0">
-                    <MessageSquare size={14} className="text-purple-600" />
-                 </div>
-                 <div>
-                   <p className="text-[9px] uppercase tracking-widest font-black text-theme-text/40 mb-1">Voice Command</p>
-                   <p key={currentHintIndex} className="text-xs font-bold text-theme-text animate-in fade-in duration-300">
-                      "{HINTS[currentHintIndex]}"
-                   </p>
-                 </div>
-               </div>
-               <div className="absolute -bottom-2 left-6 w-4 h-4 bg-theme-bg border-b border-r border-theme-border rotate-45" />
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <canvas 
-              ref={canvasRef} 
-              width="80" 
-              height="80" 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" 
-            />
-            
-            <button
-              onClick={toggleVoice}
-              className={`relative z-10 w-14 h-14 rounded-full border border-theme-border flex items-center justify-center transition-all duration-300 ${
-                isActive 
-                  ? status === 'speaking' ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(52,211,153,0.5)]' : 'bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.5)]'
-                  : 'bg-theme-bg text-theme-text hover:bg-theme-text/5'
-              }`}
-            >
-              {status === 'connecting' || status === 'processing' ? (
-                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : isActive ? (
-                  <Mic size={20} className={status === 'speaking' ? 'animate-pulse' : ''} />
-              ) : (
-                  <MicOff size={20} className="opacity-50" />
-              )}
-            </button>
-          </div>
-
-          <div className={`transition-all duration-500 overflow-hidden ${isActive ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
-             <div className="bg-theme-bg/80 backdrop-blur-md border border-theme-border rounded-full px-4 py-2 flex items-center gap-2 whitespace-nowrap">
-                 <div className={`w-2 h-2 rounded-full animate-pulse ${status === 'speaking' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                 <span className="text-[10px] uppercase tracking-widest font-black text-theme-text">
-                    {status === 'listening' ? 'Listening...' : 
-                     status === 'speaking' ? 'Speaking...' : 
-                     status === 'processing' ? 'Thinking...' : 'Connecting...'}
-                 </span>
-             </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
-
-export default VoiceControl;
+                   The neural link was closed by the server. This may be due

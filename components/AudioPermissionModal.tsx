@@ -34,7 +34,7 @@ const AudioPermissionModal: React.FC<AudioPermissionModalProps> = ({ isOpen, onC
   return (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-6">
        {/* Backdrop */}
-       <div ref={overlayRef} className="absolute inset-0 bg-black/60 backdrop-blur-md opacity-0" />
+       <div ref={overlayRef} className="absolute inset-0 bg-theme-bg/80 backdrop-blur-md opacity-0" />
        
        {/* Modal Card */}
        <div 
