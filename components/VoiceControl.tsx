@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage } from "@google/genai";
-import { Mic, MicOff, MessageSquare, Settings, AlertCircle } from 'lucide-react';
+import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
+import { Mic, MicOff, MessageSquare, AudioLines, X, CheckCircle } from 'lucide-react';
 import gsap from 'gsap';
 import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES } from '../constants';
 
@@ -23,11 +23,13 @@ const HINTS = [
 
 const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, isChatOpen }) => {
   const [isActive, setIsActive] = useState(false);
-  const isActiveRef = useRef(false); // Sync ref for audio processor
+  const isActiveRef = useRef(false);
   const [volume, setVolume] = useState(0);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking' | 'processing'>('idle');
   const [showHints, setShowHints] = useState(true);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
+  
+  // Modals
   const [permissionError, setPermissionError] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,41 +50,16 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
   const hintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasWelcomedRef = useRef(false);
 
-  // Trigger welcome on FIRST interaction to bypass browser autoplay blocks
+  // Animation for Permission Error Modal
   useEffect(() => {
-    if (shouldWelcome && !isActiveRef.current && !hasWelcomedRef.current) {
-        
-        const handleInteraction = async () => {
-             // Check again to prevent race conditions if user clicked mic button manually
-             if (hasWelcomedRef.current) return;
-             
-             hasWelcomedRef.current = true;
-             console.log("User interaction detected, starting auto-welcome sequence...");
-             
-             try {
-                await startSession(true);
-             } catch (err) {
-                console.debug("Auto-welcome failed", err);
-             }
-             
-             // Clean up listeners
-             cleanup();
-        };
-
-        const cleanup = () => {
-            window.removeEventListener('click', handleInteraction);
-            window.removeEventListener('keydown', handleInteraction);
-            window.removeEventListener('touchstart', handleInteraction);
-        };
-
-        // Listen for any valid user gesture
-        window.addEventListener('click', handleInteraction, { once: true });
-        window.addEventListener('keydown', handleInteraction, { once: true });
-        window.addEventListener('touchstart', handleInteraction, { once: true });
-
-        return () => cleanup();
+    if (permissionError && modalRef.current) {
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+        gsap.fromTo(modalRef.current, 
+            { scale: 0.9, opacity: 0, y: 20 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: 'back.out(1.7)' }
+        );
     }
-  }, [shouldWelcome]);
+  }, [permissionError]);
 
   // Cycle hints
   useEffect(() => {
@@ -97,17 +74,6 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       if (hintIntervalRef.current) clearInterval(hintIntervalRef.current);
     };
   }, [showHints]);
-
-  // Permission Modal Animation
-  useEffect(() => {
-    if (permissionError) {
-        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-        gsap.fromTo(modalRef.current, 
-            { scale: 0.9, opacity: 0, y: 20 },
-            { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: 'back.out(1.7)' }
-        );
-    }
-  }, [permissionError]);
 
   // Construct System Instruction with Context
   const systemContext = `
@@ -154,15 +120,44 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     },
   };
 
+  // Global listener to start session on user interaction (triggered by App's AudioPermissionModal)
+  useEffect(() => {
+    if (shouldWelcome && !hasWelcomedRef.current) {
+      const handleInteraction = async () => {
+         if (hasWelcomedRef.current) return;
+         hasWelcomedRef.current = true;
+         console.log("User interaction detected, starting session...");
+         
+         try {
+            await startSession(true);
+         } catch (err) {
+            console.debug("Auto-welcome failed", err);
+         }
+         
+         cleanup();
+      };
+
+      const cleanup = () => {
+          window.removeEventListener('click', handleInteraction);
+          window.removeEventListener('keydown', handleInteraction);
+          window.removeEventListener('touchstart', handleInteraction);
+      };
+
+      window.addEventListener('click', handleInteraction, { once: true });
+      window.addEventListener('keydown', handleInteraction, { once: true });
+      window.addEventListener('touchstart', handleInteraction, { once: true });
+
+      return () => cleanup();
+    }
+  }, [shouldWelcome]);
+
   const startSession = async (isWelcome = false) => {
-    // 1. Clean up any existing session properly
     await stopSession();
     
     setShowHints(false);
     setStatus('connecting');
 
     try {
-      // 2. Get Media Stream FIRST (Must be triggered during user interaction)
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
             sampleRate: 16000,
@@ -172,12 +167,10 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       });
       streamRef.current = stream;
 
-      // 3. Initialize Audio Contexts
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       inputContextRef.current = new AudioCtx({ sampleRate: 16000 });
       outputContextRef.current = new AudioCtx({ sampleRate: 24000 });
       
-      // Resume contexts immediately (crucial for Safari/Chrome)
       if (inputContextRef.current.state === 'suspended') await inputContextRef.current.resume();
       if (outputContextRef.current.state === 'suspended') await outputContextRef.current.resume();
 
@@ -186,9 +179,9 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
-          responseModalities: ['AUDIO'],
+          responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [navigateTool] }],
-          systemInstruction: { parts: [{ text: systemContext }] }
+          systemInstruction: systemContext
         },
         callbacks: {
           onopen: () => {
@@ -196,16 +189,17 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
             setStatus('listening');
             setIsActive(true);
             isActiveRef.current = true;
-            
-            // Start processing microphone input
             setupAudioInput(sessionPromise);
 
-            // Auto-welcome message
             if (isWelcome) {
                 setTimeout(() => {
                     sessionPromise.then(session => {
                         session.sendRealtimeInput({
-                            text: "Greet the visitor warmly to Jonadab's portfolio. Briefly mention that you can navigate the site or answer questions about his work."
+                            content: {
+                                parts: [{
+                                    text: "Greet the visitor warmly to Jonadab's portfolio. Briefly mention that you can navigate the site or answer questions about his work."
+                                }]
+                            }
                         });
                     });
                 }, 500);
@@ -218,15 +212,11 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
               await playAudio(audioData);
             }
 
-            // --- Auto-Deactivation for Welcome Message ---
             if (isWelcome) {
                 if (msg.serverContent?.turnComplete) {
                     const ctx = outputContextRef.current;
                     const remainingTime = ctx ? (nextStartTimeRef.current - ctx.currentTime) * 1000 : 0;
-                    
-                    // Add buffer to ensure audio fully fades/ends before cutting off
                     setTimeout(() => {
-                        // Only stop if user hasn't engaged further
                         if (isActiveRef.current && status !== 'processing') {
                             stopSession();
                         }
@@ -244,7 +234,6 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
                 if (fc.name === 'navigate') {
                   console.log("Navigating to:", fc.args.section);
                   onNavigate(fc.args.section);
-                  
                   sessionPromise.then(session => {
                     session.sendToolResponse({
                       functionResponses: {
@@ -258,12 +247,18 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
               });
             }
           },
-          onclose: () => {
-              console.log("Session closed by server");
+          onclose: (e) => {
+              console.log("Session closed by server", e);
+              if (isActiveRef.current) {
+                  setPermissionError(true);
+              }
               stopSession();
           },
           onerror: (e) => {
             console.error("Gemini Live Error", e);
+            if (isActiveRef.current) {
+                setPermissionError(true);
+            }
             stopSession();
           }
         }
@@ -273,7 +268,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
 
     } catch (err) {
       if (isWelcome) {
-          console.debug("Auto-welcome failed (permission denied or no user gesture).", err);
+          console.debug("Auto-welcome failed.", err);
           stopSession();
           return;
       }
@@ -287,7 +282,6 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
     const ctx = inputContextRef.current;
     if(!ctx || !streamRef.current) return;
     
-    // Create new nodes
     sourceRef.current = ctx.createMediaStreamSource(streamRef.current);
     processorRef.current = ctx.createScriptProcessor(4096, 1, 1);
     
@@ -295,15 +289,12 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       if (!isActiveRef.current) return;
 
       const inputData = e.inputBuffer.getChannelData(0);
-      
-      // Volume calculation
       let sum = 0;
       for (let i = 0; i < inputData.length; i++) {
         sum += inputData[i] * inputData[i];
       }
       setVolume(Math.sqrt(sum / inputData.length));
 
-      // PCM Conversion
       const l = inputData.length;
       const int16 = new Int16Array(l);
       for (let i = 0; i < l; i++) {
@@ -311,7 +302,6 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       }
       const bytes = new Uint8Array(int16.buffer);
       
-      // Base64 Encode
       let binary = '';
       const len = bytes.byteLength;
       for (let i = 0; i < len; i++) {
@@ -322,7 +312,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
       sessionPromise.then(session => {
         session.sendRealtimeInput({
           media: {
-            mimeType: 'audio/pcm;rate=16000', // Standard rate for Gemini
+            mimeType: 'audio/pcm;rate=16000',
             data: b64
           }
         });
@@ -456,9 +446,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
   }, [isActive, volume, status]);
 
   const toggleVoice = () => {
-    // If user manually clicks, mark welcome as done to avoid double-trigger
     hasWelcomedRef.current = true;
-    
     if (isActiveRef.current) {
       stopSession();
     } else {
@@ -468,26 +456,22 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
 
   return (
     <>
-      {/* Permission Modal */}
+      {/* ERROR MODAL */}
       {permissionError && (
         <div className="fixed inset-0 z-[100000] flex items-center justify-center p-6">
             <div ref={overlayRef} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setPermissionError(false)} />
             <div ref={modalRef} className="relative bg-theme-bg/90 backdrop-blur-2xl border border-theme-border p-8 rounded-2xl max-w-sm w-full shadow-[0_0_50px_rgba(147,51,234,0.2)] flex flex-col items-center text-center overflow-hidden">
-                {/* Decorative elements */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-600 to-transparent opacity-50" />
-                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-purple-600/10 rounded-full blur-2xl" />
-                
                 <div className="relative w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 text-red-500 ring-1 ring-red-500/20 shadow-lg shadow-red-500/10">
                    <MicOff size={24} />
                    <div className="absolute inset-0 border border-red-500/20 rounded-full animate-ping opacity-20" />
                 </div>
                 
                 <h3 className="text-xl font-black uppercase tracking-tighter text-theme-text mb-3">
-                   Audio Feed Locked
+                   Connection Interrupted
                 </h3>
                 
                 <p className="text-xs font-medium text-theme-text/60 leading-relaxed mb-8 relative z-10">
-                   To initialize the neural voice interface, microphone permission is required. Please check your browser settings and try again.
+                   The neural link was closed by the server. This may be due to inactivity or network conditions.
                 </p>
                 
                 <div className="grid grid-cols-2 gap-3 w-full relative z-10">
@@ -504,13 +488,14 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, shouldWelcome, 
                         }}
                         className="py-3 px-4 rounded-xl bg-theme-text text-theme-bg text-[10px] uppercase tracking-widest font-black hover:bg-purple-600 hover:text-white transition-colors shadow-lg shadow-purple-500/20"
                     >
-                        Retry Access
+                        Reconnect
                     </button>
                 </div>
             </div>
         </div>
       )}
 
+      {/* FLOATING CONTROL */}
       <div className="fixed bottom-6 left-6 md:bottom-10 md:left-10 z-50 flex flex-col items-start gap-4">
         
         {/* Dynamic Hints Tooltip */}
