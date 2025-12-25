@@ -23,6 +23,7 @@ import SmartRecruiter from './components/SmartRecruiter';
 import VoiceControl from './components/VoiceControl';
 import NetworkStatus from './components/NetworkStatus';
 import AudioPermissionModal from './components/AudioPermissionModal';
+import ResumeCreator from './components/ResumeCreator';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,7 +31,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [shouldWelcome, setShouldWelcome] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [view, setView] = useState<'home' | 'archive' | 'about' | 'testimonials'>('home');
+  const [view, setView] = useState<'home' | 'archive' | 'about' | 'testimonials' | 'resume'>('home');
   const [isCmdOpen, setIsCmdOpen] = useState(false);
   const [isThemeGenOpen, setIsThemeGenOpen] = useState(false);
   const [isRecruiterOpen, setIsRecruiterOpen] = useState(false);
@@ -141,7 +142,7 @@ const App: React.FC = () => {
     }, 500);
   }, []);
 
-  const switchView = (newView: 'home' | 'archive' | 'about' | 'testimonials') => {
+  const switchView = (newView: 'home' | 'archive' | 'about' | 'testimonials' | 'resume') => {
     if (view === newView) return;
     
     const lenis = lenisRef.current;
@@ -179,7 +180,7 @@ const App: React.FC = () => {
   };
 
   const handleCmdNavigate = (section: string) => {
-      if (['home', 'archive', 'about', 'testimonials'].includes(section)) {
+      if (['home', 'archive', 'about', 'testimonials', 'resume'].includes(section)) {
           switchView(section as any);
       } else if (section === 'theme') {
           toggleTheme();
@@ -248,8 +249,8 @@ const App: React.FC = () => {
             <Header 
               isDark={isDark} 
               onToggleTheme={toggleTheme} 
-              currentView={view}
-              onViewChange={switchView}
+              currentView={view as any} // Cast to satisfy interface if not updated yet
+              onViewChange={(v) => switchView(v)}
               onOpenThemeGen={() => setIsThemeGenOpen(true)}
               onOpenRecruiter={() => setIsRecruiterOpen(true)}
             />
@@ -266,6 +267,7 @@ const App: React.FC = () => {
               {view === 'archive' && <Archive onBack={() => switchView('home')} />}
               {view === 'about' && <About onBack={() => switchView('home')} />}
               {view === 'testimonials' && <Testimonials onBack={() => switchView('home')} />}
+              {view === 'resume' && <ResumeCreator onBack={() => switchView('home')} />}
             </main>
             {view === 'home' && <Footer />}
             <AIAssistant isOpen={isChatOpen} onToggle={setIsChatOpen} />

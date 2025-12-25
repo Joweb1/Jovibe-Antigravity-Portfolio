@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import gsap from 'gsap';
-import { Briefcase, X, Loader2, CheckCircle, AlertCircle, Percent, Send } from 'lucide-react';
+import { Briefcase, X, Loader2, CheckCircle, Send, Copy, FileText, Sparkles } from 'lucide-react';
 import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES } from '../constants';
 
 interface SmartRecruiterProps {
@@ -13,7 +12,8 @@ interface SmartRecruiterProps {
 const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
   const [jobDescription, setJobDescription] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<{ score: number; pitch: string; matchReason: string } | null>(null);
+  const [result, setResult] = useState<{ score: number; pitch: string; matchReason: string; emailDraft: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -64,8 +64,8 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
       });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `You are a career strategist. Compare this Job Description against Jonadab's Portfolio data.
+        model: 'gemini-3-pro-preview',
+        contents: `You are a career strategist for Jonadab Uroh. Compare this Job Description against his Portfolio.
         
         JOB DESCRIPTION:
         ${jobDescription}
@@ -74,9 +74,14 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
         ${portfolioContext}
 
         Generate a compatibility report in JSON format:
-        1. "score": An integer 0-100 based on skill overlap and experience relevance.
-        2. "pitch": A short, persuasive paragraph (max 60 words) written in first-person ("I am...") explaining exactly why Jonadab is the perfect fit for this specific role, referencing his specific projects.
-        3. "matchReason": A bullet point summarizing the strongest technical match.
+        1. "score": Integer 0-100 based on skill overlap.
+        2. "pitch": A very short elevator pitch (max 40 words).
+        3. "matchReason": One specific technical match (e.g. "Strong Laravel & AI integration experience").
+        4. "emailDraft": A tailored "Cover Letter" or "Intro Application" text. 
+           - Tone: Professional, confident, but NOT corporate/stiff. Fits a "No polished cover letter needed" instruction but is high quality.
+           - Content: Directly address how Jonadab's specific projects (like Jovibe or Clymail) prove he can do the job. 
+           - Mention specific stack matches (e.g. Laravel, Inertia, React, AI).
+           - Structure it ready to copy-paste into an email/form.
         `,
         config: {
           responseMimeType: "application/json",
@@ -86,8 +91,9 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
               score: { type: Type.INTEGER },
               pitch: { type: Type.STRING },
               matchReason: { type: Type.STRING },
+              emailDraft: { type: Type.STRING },
             },
-            required: ["score", "pitch", "matchReason"],
+            required: ["score", "pitch", "matchReason", "emailDraft"],
           }
         }
       });
@@ -99,6 +105,14 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
       console.error("Analysis failed", error);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (result?.emailDraft) {
+      navigator.clipboard.writeText(result.emailDraft);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -124,7 +138,7 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h2 className="text-lg font-black uppercase tracking-tighter text-theme-text leading-none">Smart Recruiter</h2>
-                <p className="text-[10px] uppercase tracking-widest text-theme-text/40 font-bold">Compatibility Engine</p>
+                <p className="text-[10px] uppercase tracking-widest text-theme-text/40 font-bold">Compatibility & Cover Letter Engine</p>
               </div>
            </div>
            <button onClick={onClose} className="p-2 text-theme-text/40 hover:text-theme-text transition-colors"><X size={20} /></button>
@@ -137,7 +151,7 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
               <div className="bg-purple-600/5 border border-purple-600/10 rounded-xl p-4">
                  <p className="text-xs font-medium text-purple-600/80 leading-relaxed">
                    <CheckCircle size={14} className="inline mr-2 mb-0.5" />
-                   Paste a Job Description below. I will analyze my entire portfolio history to calculate a compatibility score and generate a personalized pitch for you.
+                   Paste a Job Description below. I will analyze my entire portfolio history to calculate a compatibility score and generate a custom cover letter / intro.
                  </p>
               </div>
               
@@ -154,41 +168,64 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
                 className="w-full py-4 bg-theme-text text-theme-bg rounded-xl font-black uppercase tracking-widest text-xs hover:bg-purple-600 hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isAnalyzing ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-                {isAnalyzing ? 'Analyzing Portfolio...' : 'Run Compatibility Check'}
+                {isAnalyzing ? 'Analyzing Portfolio...' : 'Generate Application & Cover Letter'}
               </button>
             </div>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                {/* Score Card */}
-               <div className="flex items-center justify-center py-8 relative">
+               <div className="flex items-center justify-center py-6 relative">
                   <div className="absolute inset-0 bg-purple-600/5 rounded-full blur-[60px]" />
                   <div className="relative z-10 flex flex-col items-center">
-                     <div className="text-7xl font-black tracking-tighter text-theme-text flex items-start">
+                     <div className="text-6xl font-black tracking-tighter text-theme-text flex items-start">
                         <span ref={scoreRef}>0</span>
-                        <span className="text-3xl text-purple-600 mt-2">%</span>
+                        <span className="text-2xl text-purple-600 mt-2">%</span>
                      </div>
-                     <span className="text-[10px] uppercase tracking-[0.4em] font-black text-theme-text/40 mt-2">Match Probability</span>
+                     <span className="text-[10px] uppercase tracking-[0.4em] font-black text-theme-text/40 mt-2">Match Strength</span>
                   </div>
                </div>
 
-               {/* Pitch */}
-               <div className="space-y-4">
-                  <h3 className="text-[10px] uppercase tracking-widest text-purple-600 font-black flex items-center gap-2">
-                     <CheckCircle size={12} /> Personalized Pitch
-                  </h3>
-                  <div className="p-6 bg-theme-text/5 border border-theme-border rounded-xl">
-                     <p className="text-base md:text-lg font-medium leading-relaxed text-theme-text italic">
-                        "{result.pitch}"
-                     </p>
-                  </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 {/* Pitch */}
+                 <div className="p-4 bg-theme-text/5 border border-theme-border rounded-xl">
+                    <h3 className="text-[9px] uppercase tracking-widest text-purple-600 font-black mb-2 flex items-center gap-2">
+                       <Sparkles size={10} /> Quick Pitch
+                    </h3>
+                    <p className="text-xs font-medium leading-relaxed text-theme-text italic">
+                       "{result.pitch}"
+                    </p>
+                 </div>
+
+                 {/* Reason */}
+                 <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                    <h3 className="text-[9px] uppercase tracking-widest text-emerald-600 font-black mb-2 flex items-center gap-2">
+                       <CheckCircle size={10} /> Key Logic
+                    </h3>
+                    <p className="text-xs font-medium text-theme-text/80">{result.matchReason}</p>
+                 </div>
                </div>
 
-               {/* Reason */}
-               <div className="flex items-start gap-3 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                  <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] uppercase tracking-widest text-emerald-600 font-black mb-1">Key Strength</h4>
-                    <p className="text-sm font-medium text-theme-text/70">{result.matchReason}</p>
+               {/* Application Draft */}
+               <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-end">
+                    <h3 className="text-[10px] uppercase tracking-widest text-theme-text/40 font-black flex items-center gap-2">
+                       <FileText size={12} /> Smart Cover Letter
+                    </h3>
+                    <button 
+                      onClick={copyToClipboard}
+                      className="text-[9px] uppercase tracking-widest font-black text-purple-600 hover:text-purple-400 flex items-center gap-2 transition-colors"
+                    >
+                      {copied ? <CheckCircle size={12} /> : <Copy size={12} />}
+                      {copied ? 'Copied' : 'Copy Text'}
+                    </button>
+                  </div>
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-purple-600/5 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative p-5 bg-theme-bg border border-theme-border rounded-xl shadow-inner">
+                       <p className="text-sm font-mono text-theme-text/80 whitespace-pre-wrap leading-relaxed">
+                          {result.emailDraft}
+                       </p>
+                    </div>
                   </div>
                </div>
 

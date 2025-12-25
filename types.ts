@@ -43,3 +43,31 @@ export interface Testimonial {
   company: string;
   image?: string;
 }
+
+export interface ResumeData {
+  fullName: string;
+  role: string;
+  email: string;
+  phone: string;
+  location: string;
+  website?: string;
+  summary: string;
+  skills: string[];
+  image?: string;
+  experience: {
+    company: string;
+    role: string;
+    duration: string;
+    description: string[];
+  }[];
+  education: {
+    school: string;
+    degree: string;
+    year: string;
+  }[];
+  projects: {
+    name: string;
+    description: string;
+    tech: string;
+  }[];
+}

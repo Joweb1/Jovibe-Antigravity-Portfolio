@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import gsap from 'gsap';
-import { Search, Command, ArrowRight, Sun, Moon, Briefcase, User, Mail, Zap, Quote, Wand2 } from 'lucide-react';
+import { Search, Command, ArrowRight, Sun, Moon, Briefcase, User, Mail, Zap, Quote, Wand2, FileText } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
   const inputRef = useRef<HTMLInputElement>(null);
 
   const actions = [
+    { id: 'resume', label: 'Resume Studio', icon: <FileText size={14} />, action: () => onNavigate('resume') },
     { id: 'generate-theme', label: 'AI Theme Generator', icon: <Wand2 size={14} />, action: () => onNavigate('generate-theme') },
     { id: 'home', label: 'Go Home', icon: <Zap size={14} />, action: () => onNavigate('home') },
     { id: 'work', label: 'View Projects', icon: <Briefcase size={14} />, action: () => onNavigate('work') },

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { IMAGES } from '../assets/images';
@@ -75,6 +74,26 @@ const OrbitingSkills: React.FC = () => {
         rotation: 360,
         duration: 25,
         ease: 'none',
+        repeat: -1
+      });
+
+      // Multi-layered Antigravity Float
+      // 1. Container floats slowly
+      gsap.to(containerRef.current, {
+        y: -15,
+        duration: 4,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1
+      });
+
+      // 2. Profile floats independently with slight offset for parallax depth
+      gsap.to(profileRef.current, {
+        y: -10,
+        duration: 5,
+        delay: 0.5,
+        ease: "sine.inOut",
+        yoyo: true,
         repeat: -1
       });
     });

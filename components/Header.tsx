@@ -1,15 +1,15 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { Sun, Moon, ArrowLeft, Menu, X, Wand2, Briefcase } from 'lucide-react';
+import { Sun, Moon, ArrowLeft, Menu, X, Wand2, Briefcase, FileText } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import { useMagnetic } from '../hooks/useMagnetic';
 
 interface HeaderProps {
   isDark: boolean;
   onToggleTheme: () => void;
-  currentView: 'home' | 'archive' | 'about' | 'testimonials';
-  onViewChange: (view: 'home' | 'archive' | 'about' | 'testimonials') => void;
+  currentView: 'home' | 'archive' | 'about' | 'testimonials' | 'resume';
+  onViewChange: (view: 'home' | 'archive' | 'about' | 'testimonials' | 'resume') => void;
   onOpenThemeGen: () => void;
   onOpenRecruiter: () => void;
 }
@@ -94,6 +94,7 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
     { label: 'Home', action: () => onViewChange('home') },
     { label: 'Archive', action: () => onViewChange('archive') },
     { label: 'Testimonials', action: () => onViewChange('testimonials') },
+    { label: 'Resume Studio', action: () => onViewChange('resume') },
     { label: 'About Me', action: () => onViewChange('about') },
   ];
 
@@ -133,6 +134,15 @@ const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, currentView, onV
           </nav>
 
           <div className="flex items-center gap-3 relative z-[90]">
+            <button
+                onClick={() => onViewChange('resume')}
+                className="hidden md:flex p-2.5 bg-theme-text/5 hover:bg-theme-text/10 border border-theme-border rounded-full text-theme-text transition-all duration-300 group"
+                aria-label="Resume Studio"
+                title="Create CV"
+            >
+                <FileText size={16} className="group-hover:text-theme-accent transition-colors" />
+            </button>
+
             <button
                 onClick={onOpenRecruiter}
                 className="hidden md:flex p-2.5 bg-theme-text/5 hover:bg-theme-text/10 border border-theme-border rounded-full text-theme-text transition-all duration-300 group"
