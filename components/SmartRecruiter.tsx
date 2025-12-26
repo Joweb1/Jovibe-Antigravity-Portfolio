@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import gsap from 'gsap';
-import { Briefcase, X, Loader2, CheckCircle, Send, Copy, FileText, Sparkles } from 'lucide-react';
+import { Briefcase, X, Loader2, CheckCircle, Send, Copy, FileText, Sparkles, AlertCircle } from 'lucide-react';
 import { ARCHIVE_PROJECTS, SKILL_CATEGORIES, SERVICES } from '../constants';
 
 interface SmartRecruiterProps {
@@ -14,6 +15,7 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<{ score: number; pitch: string; matchReason: string; emailDraft: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -53,18 +55,19 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
     if (!jobDescription.trim()) return;
     setIsAnalyzing(true);
     setResult(null);
+    setError(null);
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       
       const portfolioContext = JSON.stringify({
-        projects: ARCHIVE_PROJECTS.map(p => ({ title: p.title, desc: p.description, tech: p.techStack })),
-        skills: SKILL_CATEGORIES,
-        services: SERVICES
+        projects: ARCHIVE_PROJECTS.map(p => ({ title: p.title, desc: p.description?.substring(0, 200), tech: p.techStack })), // Truncate desc to save tokens
+        skills: SKILL_CATEGORIES.map(s => ({ name: s.name, skills: s.skills.slice(0, 10) })), // Limit skills
+        services: SERVICES.map(s => s.title)
       });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3-flash-preview', // Switch to Flash for speed/reliability
         contents: `You are a career strategist for Jonadab Uroh. Compare this Job Description against his Portfolio.
         
         JOB DESCRIPTION:
@@ -98,11 +101,16 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
         }
       });
 
-      const data = JSON.parse(response.text || '{}');
+      const text = response.text || '{}';
+      // Basic cleanup for markdown json blocks if model adds them
+      const cleanText = text.replace(/```json\n?|```/g, '').trim();
+      const data = JSON.parse(cleanText);
+      
       setResult(data);
 
     } catch (error) {
       console.error("Analysis failed", error);
+      setError("Analysis failed. Please check your connection or try a shorter job description.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -146,6 +154,13 @@ const SmartRecruiter: React.FC<SmartRecruiterProps> = ({ isOpen, onClose }) => {
 
         {/* Content */}
         <div className="p-6 overflow-y-auto custom-scrollbar">
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500">
+                <AlertCircle size={16} />
+                <p className="text-xs font-bold">{error}</p>
+            </div>
+          )}
+
           {!result ? (
             <div className="space-y-6">
               <div className="bg-purple-600/5 border border-purple-600/10 rounded-xl p-4">
