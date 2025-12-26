@@ -198,13 +198,19 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter
   const startSession = async (mode: 'interactive' | 'welcome' = 'interactive') => {
     await stopSession();
     
+    // Check network status before starting
+    if (!navigator.onLine) {
+        setPermissionError(true);
+        return;
+    }
+
     setShowHints(false);
     setStatus('connecting');
 
     try {
+      // Removing explicit sampleRate to allow browser flexibility and reduce errors
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-            sampleRate: 16000,
             channelCount: 1,
             echoCancellation: true
         } 
@@ -235,7 +241,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
           },
           tools: [{ functionDeclarations: [navigateTool, openRecruiterTool, toggleThemeTool] }],
-          systemInstruction: fullSystemInstruction // Pass as simple string to avoid format errors
+          systemInstruction: fullSystemInstruction
         },
         callbacks: {
           onopen: () => {
@@ -367,8 +373,10 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter
               }
             });
           }).catch(e => {
-              // Suppress errors during shutdown
-              if (isActiveRef.current) console.error("Send input error", e);
+              // Suppress errors during shutdown or network drops
+              if (isActiveRef.current) {
+                  console.warn("Send input error (packet drop)", e);
+              }
           });
       }
     };
@@ -525,7 +533,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate, onOpenRecruiter
                 </h3>
                 
                 <p className="text-xs font-medium text-theme-text/60 leading-relaxed mb-8 relative z-10">
-                   The neural link was closed by the server. This may be due to inactivity or network conditions.
+                   The neural link was closed by the server. This may be due to inactivity, network conditions, or browser compatibility.
                 </p>
                 
                 <div className="grid grid-cols-2 gap-3 w-full relative z-10">
